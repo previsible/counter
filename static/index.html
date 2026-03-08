@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calorie Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0d0d1a;
+      --surface:  #1a1a2e;
+      --surface2: #242442;
+      --accent:   #14b8a6;
+      --accent-d: #0d9488;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --green:    #22c55e;
+      --amber:    #f59e0b;
+      --red:      #ef4444;
+      --border:   rgba(255,255,255,0.07);
+      --r:        12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 580px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0 0.25rem;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+    #last-sync  { font-size: 0.7rem; color: var(--muted); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 1.125rem;
+    }
+    .card-title {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+      margin-bottom: 0.875rem;
+    }
+
+    /* ── Summary ── */
+    .summary-inner {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .ring-wrap {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      flex-shrink: 0;
+    }
+    .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-bg   { fill: none; stroke: var(--surface2); stroke-width: 9; }
+    .ring-fill {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 9;
+      stroke-linecap: round;
+      transition: stroke-dasharray 0.7s ease, stroke 0.3s;
+    }
+    .ring-text {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .ring-pct   { font-size: 1.4rem; font-weight: 700; line-height: 1; transition: color 0.3s; }
+    .ring-label { font-size: 0.6rem; color: var(--muted); }
+
+    .summary-stats { flex: 1; }
+    .cal-main   { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+    .cal-sub    { font-size: 0.8rem; color: var(--muted); margin-top: 0.125rem; }
+    .macros     { display: flex; gap: 0.875rem; margin-top: 0.625rem; flex-wrap: wrap; }
+    .macro      { font-size: 0.72rem; color: var(--muted); }
+    .macro b    { color: var(--text); font-weight: 500; }
+
+    /* ── Diary ── */
+    .meal-group { margin-bottom: 0.75rem; }
+    .meal-group:last-child { margin-bottom: 0; }
+    .meal-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--accent); margin-bottom: 0.25rem;
+    }
+    .diary-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .diary-row:last-child { border-bottom: none; }
+    .dr-name { flex: 1; font-size: 0.875rem; text-transform: capitalize; }
+    .dr-qty  { font-size: 0.72rem; color: var(--muted); }
+    .dr-cal  { font-size: 0.875rem; font-weight: 500; min-width: 3.5rem; text-align: right; }
+
+    /* ── Delete button ── */
+    .btn-del {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; padding: 0.2rem 0.35rem;
+      border-radius: 5px; font-size: 0.75rem; line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+    .btn-del:hover, .btn-del.armed { color: var(--red); background: rgba(239,68,68,0.12); }
+    .btn-del.armed { font-size: 0.65rem; }
+
+    /* ── Chart ── */
+    .chart-wrap { height: 190px; position: relative; }
+
+    /* ── Foods ── */
+    .food-toolbar {
+      display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;
+    }
+    .add-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+
+    input[type=text], input[type=search], input[type=number] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.475rem 0.75rem;
+      font-family: inherit; font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .in-name   { flex: 1; min-width: 0; }
+    .in-cal    { width: 78px; }
+    .in-search { flex: 1; }
+
+    .btn-add {
+      background: var(--accent); color: #0a0a14;
+      border: none; border-radius: 8px;
+      padding: 0.475rem 0.9rem;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-add:hover { background: var(--accent-d); }
+
+    .food-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.45rem 0; border-bottom: 1px solid var(--border);
+    }
+    .food-row:last-child { border-bottom: none; }
+    .fr-name { flex: 1; font-size: 0.875rem; text-transform: capitalize; }
+
+    .cal-inp {
+      background: none; border: 1px solid transparent;
+      border-radius: 6px; color: var(--text);
+      font-family: inherit; font-size: 0.875rem; font-weight: 500;
+      padding: 0.18rem 0.35rem; width: 64px; text-align: right;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .cal-inp:focus { outline: none; border-color: var(--accent); cursor: text; }
+    .fr-unit { font-size: 0.68rem; color: var(--muted); }
+
+    /* ── Skeleton ── */
+    .sk {
+      height: 0.9em; border-radius: 5px;
+      background: linear-gradient(90deg, var(--surface2) 25%, rgba(255,255,255,0.06) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      margin: 0.45rem 0;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .empty { text-align: center; color: var(--muted); padding: 1.25rem 0; font-size: 0.85rem; }
+
+    @media (max-width: 380px) {
+      .cal-main { font-size: 1.6rem; }
+      .ring-wrap { width: 96px; height: 96px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>🍽 Calorie Tracker</h1>
+    <span id="last-sync"></span>
+  </header>
+
+  <!-- Today summary -->
+  <div class="card">
+    <div class="summary-inner">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 110 110">
+          <circle class="ring-bg"   cx="55" cy="55" r="46"/>
+          <circle class="ring-fill" id="ring" cx="55" cy="55" r="46" stroke-dasharray="0 289"/>
+        </svg>
+        <div class="ring-text">
+          <span class="ring-pct" id="ring-pct">0%</span>
+          <span class="ring-label">of goal</span>
+        </div>
+      </div>
+      <div class="summary-stats">
+        <div class="cal-main" id="cal-main">–</div>
+        <div class="cal-sub"  id="cal-sub">of 2,000 kcal</div>
+        <div class="macros"   id="macros"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's diary -->
+  <div class="card">
+    <div class="card-title">Today's Diary</div>
+    <div id="diary">
+      <div class="sk"></div>
+      <div class="sk" style="width:65%"></div>
+    </div>
+  </div>
+
+  <!-- Weekly chart -->
+  <div class="card">
+    <div class="card-title">Weekly Trend</div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  </div>
+
+  <!-- Food database -->
+  <div class="card">
+    <div class="card-title">Food Database</div>
+    <div class="add-row">
+      <input type="text"   id="in-name" class="in-name" placeholder="Food name"
+             onkeydown="if(event.key==='Enter')id('in-cal').focus()">
+      <input type="number" id="in-cal"  class="in-cal"  placeholder="kcal" min="1"
+             onkeydown="if(event.key==='Enter')addFood()">
+      <button class="btn-add" onclick="addFood()">Add</button>
+    </div>
+    <div class="food-toolbar">
+      <input type="search" id="in-search" class="in-search" placeholder="Search foods…"
+             oninput="filterFoods(this.value)">
+    </div>
+    <div id="foods">
+      <div class="sk"></div>
+      <div class="sk" style="width:55%"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const TARGET = 2000;
+const CIRC   = 2 * Math.PI * 46; // r=46 → ≈289
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+const id  = s => document.getElementById(s);
+const fmt = n => n.toLocaleString();
+const todayStr = () => new Date().toLocaleDateString('sv'); // YYYY-MM-DD local
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+    body: opts.body != null ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) throw Object.assign(new Error(path), { status: res.status });
+  return res.status === 204 ? null : res.json();
+}
+
+// ── Delete confirmation (tap twice within 3s) ─────────────────────────────────
+const armed = new Map();
+function confirmDel(key, btn, action) {
+  if (armed.has(key)) {
+    clearTimeout(armed.get(key));
+    armed.delete(key);
+    action();
+  } else {
+    btn.textContent = 'Sure?';
+    btn.classList.add('armed');
+    armed.set(key, setTimeout(() => {
+      armed.delete(key);
+      btn.textContent = '✕';
+      btn.classList.remove('armed');
+    }, 3000));
+  }
+}
+
+// ── Ring ──────────────────────────────────────────────────────────────────────
+function setRing(cal) {
+  const pct   = cal / TARGET;
+  const fill  = Math.min(pct, 1) * CIRC;
+  const color = pct < 0.8 ? 'var(--green)' : pct < 1 ? 'var(--amber)' : 'var(--red)';
+  const ring  = id('ring');
+  ring.setAttribute('stroke-dasharray', `${fill.toFixed(1)} ${CIRC.toFixed(1)}`);
+  ring.style.stroke = color;
+  id('ring-pct').textContent = Math.round(pct * 100) + '%';
+  id('ring-pct').style.color = color;
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+async function loadSummary() {
+  const s = await api(`/api/diary/summary?date=${todayStr()}`);
+  const cal = s.total_calories;
+  id('cal-main').textContent = `${fmt(cal)} kcal`;
+  id('cal-sub').textContent  = `of ${fmt(s.target_calories)} kcal`;
+  setRing(cal);
+
+  const parts = [
+    s.total_protein_g && `<span class="macro"><b>${Math.round(s.total_protein_g)}g</b> protein</span>`,
+    s.total_carbs_g   && `<span class="macro"><b>${Math.round(s.total_carbs_g)}g</b> carbs</span>`,
+    s.total_fat_g     && `<span class="macro"><b>${Math.round(s.total_fat_g)}g</b> fat</span>`,
+  ].filter(Boolean);
+  id('macros').innerHTML = parts.join('');
+  id('last-sync').textContent = 'Synced ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Diary ─────────────────────────────────────────────────────────────────────
+async function loadDiary() {
+  const entries = await api(`/api/diary?date=${todayStr()}`);
+  if (!entries.length) {
+    id('diary').innerHTML = '<p class="empty">Nothing logged today yet.</p>';
+    return;
+  }
+
+  const MEAL_ORDER = ['breakfast','brunch','lunch','dinner','supper','snack'];
+  const byMeal = {};
+  for (const e of entries) {
+    const m = e.meal || 'other';
+    (byMeal[m] ??= []).push(e);
+  }
+  const meals = [
+    ...MEAL_ORDER.filter(m => byMeal[m]),
+    ...Object.keys(byMeal).filter(m => !MEAL_ORDER.includes(m) && m !== 'other'),
+    ...(byMeal.other ? ['other'] : []),
+  ];
+
+  id('diary').innerHTML = meals.map(meal => `
+    <div class="meal-group">
+      <div class="meal-label">${meal}</div>
+      ${byMeal[meal].map(e => `
+        <div class="diary-row" id="de-${e.id}">
+          <span class="dr-name">${e.food_name}</span>
+          ${e.quantity !== 1 ? `<span class="dr-qty">×${e.quantity}</span>` : ''}
+          <span class="dr-cal">${fmt(e.calories)} kcal</span>
+          <button class="btn-del" onclick="delEntry(${e.id},this)" title="Delete">✕</button>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+async function delEntry(eid, btn) {
+  confirmDel(`de-${eid}`, btn, async () => {
+    await api(`/api/diary/${eid}`, { method: 'DELETE' });
+    id(`de-${eid}`)?.remove();
+    loadSummary();
+  });
+}
+
+// ── Weekly chart ──────────────────────────────────────────────────────────────
+let chart = null;
+
+const targetLine = {
+  id: 'targetLine',
+  afterDraw({ ctx, chartArea, scales }) {
+    const y = scales.y.getPixelForValue(TARGET);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, y);
+    ctx.lineTo(chartArea.right, y);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+async function loadWeekly() {
+  const days   = await api('/api/diary/weekly');
+  const labels = days.map(d => new Date(d.date + 'T12:00').toLocaleDateString([], { weekday: 'short' }));
+  const values = days.map(d => d.total_calories);
+  const colors = values.map(v => v > TARGET ? 'rgba(239,68,68,0.75)' : 'rgba(20,184,166,0.75)');
+
+  chart?.destroy();
+  chart = new Chart(id('chart'), {
+    type: 'bar',
+    plugins: [targetLine],
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b' } },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#64748b', callback: v => v >= 1000 ? (v / 1000) + 'k' : v },
+        },
+      },
+    },
+  });
+}
+
+// ── Food database ─────────────────────────────────────────────────────────────
+let allFoods = [];
+
+async function loadFoods() {
+  allFoods = await api('/api/foods');
+  renderFoods(allFoods);
+}
+
+function filterFoods(q) {
+  const t = q.toLowerCase();
+  renderFoods(t ? allFoods.filter(f => f.name.includes(t) || (f.aliases || '').includes(t)) : allFoods);
+}
+
+function renderFoods(foods) {
+  if (!foods.length) {
+    id('foods').innerHTML = '<p class="empty">No foods saved yet.</p>';
+    return;
+  }
+  id('foods').innerHTML = foods.map(f => `
+    <div class="food-row" id="fr-${f.id}">
+      <span class="fr-name">${f.name}</span>
+      <input class="cal-inp" type="number" value="${f.calories}" min="1"
+             onblur="saveCalories(${f.id},this)"
+             onkeydown="if(event.key==='Enter')this.blur()"
+             title="Click to edit">
+      <span class="fr-unit">kcal</span>
+      <button class="btn-del" onclick="delFood(${f.id},this)" title="Delete">✕</button>
+    </div>
+  `).join('');
+}
+
+async function saveCalories(fid, inp) {
+  const cal  = parseInt(inp.value);
+  const orig = allFoods.find(f => f.id === fid)?.calories;
+  if (!cal || cal < 1 || cal === orig) { inp.value = orig; return; }
+  await api(`/api/foods/${fid}`, { method: 'PUT', body: { calories: cal } });
+  allFoods = allFoods.map(f => f.id === fid ? { ...f, calories: cal } : f);
+}
+
+async function delFood(fid, btn) {
+  confirmDel(`fr-${fid}`, btn, async () => {
+    await api(`/api/foods/${fid}`, { method: 'DELETE' });
+    allFoods = allFoods.filter(f => f.id !== fid);
+    id(`fr-${fid}`)?.remove();
+  });
+}
+
+async function addFood() {
+  const nameEl = id('in-name'), calEl = id('in-cal');
+  const name   = nameEl.value.trim().toLowerCase();
+  const cal    = parseInt(calEl.value);
+  if (!name || !cal || cal < 1) {
+    (!name ? nameEl : calEl).style.borderColor = 'var(--red)';
+    setTimeout(() => { nameEl.style.borderColor = ''; calEl.style.borderColor = ''; }, 1500);
+    return;
+  }
+  try {
+    const food = await api('/api/foods', { method: 'POST', body: { name, calories: cal } });
+    allFoods = [...allFoods, food].sort((a, b) => a.name.localeCompare(b.name));
+    renderFoods(allFoods);
+    nameEl.value = calEl.value = '';
+    nameEl.focus();
+  } catch (e) {
+    nameEl.style.borderColor = 'var(--red)';
+    setTimeout(() => nameEl.style.borderColor = '', 1500);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  await Promise.all([loadSummary(), loadDiary(), loadWeekly(), loadFoods()]);
+}
+setInterval(() => { loadSummary(); loadDiary(); }, 60_000);
+boot();
+</script>
+</body>
+</html>
