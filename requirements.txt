@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+python-telegram-bot
+python-dotenv
+pydantic-settings
+thefuzz
+python-levenshtein
