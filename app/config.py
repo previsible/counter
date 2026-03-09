@@ -7,7 +7,8 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = ""
     database_url: str = "sqlite:///calories.db"
-    daily_calorie_target: int = 2000
+    daily_calorie_target: int = 1200
+    steps_calories_per_1000: int = 45
     timezone: str = "Europe/London"
 
 

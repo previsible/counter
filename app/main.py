@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
 from app.routers import foods, diary
+from app.routers.exercise import router as exercise_router, balance_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -93,6 +94,8 @@ app.add_middleware(
 
 app.include_router(foods.router)
 app.include_router(diary.router)
+app.include_router(exercise_router)
+app.include_router(balance_router)
 
 
 @app.get("/health")
