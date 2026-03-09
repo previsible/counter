@@ -1,4 +1,6 @@
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import datetime, date as _Date
 from pydantic import BaseModel, field_validator
 
 
@@ -73,6 +75,35 @@ class DiaryEntryRead(DiaryEntryBase):
     model_config = {"from_attributes": True}
 
 
+# ── Exercise ──────────────────────────────────────────────────────────────────
+
+class ExerciseCreate(BaseModel):
+    type: str  # "steps" or "exercise"
+    description: str | None = None
+    steps: int | None = None
+    calories_burned: int
+    date: _Date | None = None
+
+
+class ExerciseUpdate(BaseModel):
+    description: str | None = None
+    steps: int | None = None
+    calories_burned: int | None = None
+
+
+class ExerciseRead(BaseModel):
+    id: int
+    type: str
+    description: str | None
+    steps: int | None
+    calories_burned: int
+    date: _Date
+    logged_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 
 class MealSummary(BaseModel):
@@ -89,9 +120,33 @@ class DailySummary(BaseModel):
     total_fat_g: float | None
     target_calories: int
     meals: list[MealSummary]
+    # Balance fields
+    steps: int
+    steps_calories_burned: int
+    exercise_calories_burned: int
+    total_burned: int
+    net_balance: int
+    exercise_entries: list[ExerciseRead]
 
 
 class WeeklyDay(BaseModel):
     date: str
     total_calories: int
     entry_count: int
+    net_balance: int
+    total_burned: int
+    steps_calories_burned: int
+    exercise_calories_burned: int
+
+
+# ── Balance ───────────────────────────────────────────────────────────────────
+
+class DayBalance(BaseModel):
+    date: str
+    food_calories: int
+    steps: int
+    steps_calories_burned: int
+    exercise_calories_burned: int
+    total_burned: int
+    net_balance: int
+    target: int

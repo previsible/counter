@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from sqlalchemy import Integer, String, Float, DateTime, ForeignKey, Text
+from datetime import datetime, date, timezone
+from sqlalchemy import Integer, String, Float, DateTime, ForeignKey, Text, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -46,3 +46,16 @@ class DiaryEntry(Base):
     meal: Mapped[str | None] = mapped_column(String, nullable=True)
 
     food: Mapped["Food | None"] = relationship("Food", back_populates="diary_entries")
+
+
+class Exercise(Base):
+    __tablename__ = "exercise"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # "steps" or "exercise"
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    steps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calories_burned: Mapped[int] = mapped_column(Integer, nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

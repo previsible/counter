@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import Food, DiaryEntry  # noqa: F401 — register models
+from app.models import Food, DiaryEntry, Exercise  # noqa: F401 — register models
 
 
 TEST_DATABASE_URL = "sqlite://"  # pure in-memory
